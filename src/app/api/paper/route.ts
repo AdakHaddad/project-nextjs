@@ -142,6 +142,9 @@
 import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
+// Mark this route as dynamic
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   try {
     // Get the department ID from the query parameters
