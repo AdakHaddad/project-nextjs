@@ -1,8 +1,9 @@
 // app/api/dosen/route.ts
-import { PrismaClient } from '@prisma/client';
+import prisma from '@/lib/prisma';
 import { NextResponse } from 'next/server';
 
-const prisma = new PrismaClient();
+// Mark this route as dynamic
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const dosen = await prisma.dosen.findMany({
