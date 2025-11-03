@@ -72,7 +72,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   pages: {
     signIn: '/page.tsx',  // Custom sign-in page
   },
-  adapter: PrismaAdapter(prisma),
+  // Remove PrismaAdapter when using JWT strategy with Credentials provider
+  // adapter: PrismaAdapter(prisma),
   providers: [
     Credentials({
       credentials: {
@@ -129,6 +130,24 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
     }),
   ],
+  callbacks: {
+    async jwt({ token, user }) {
+      // Add user info to JWT token on sign in
+      if (user) {
+        token.id = user.id;
+        token.username = user.username;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      // Add user info from JWT to session
+      if (token && session.user) {
+        session.user.id = token.id as string;
+        session.user.username = token.username as string;
+      }
+      return session;
+    },
+  },
 });
 
 // import NextAuth from "next-auth";
