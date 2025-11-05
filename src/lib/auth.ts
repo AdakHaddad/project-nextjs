@@ -65,6 +65,7 @@ import { signInSchema } from "./zod"
 
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true,  // Required for NextAuth v5 in production
   session: {
     strategy: "jwt",  // Using JWT strategy for session
     maxAge: 30 * 60,  // Set session max age to 30 minutes (in seconds)
