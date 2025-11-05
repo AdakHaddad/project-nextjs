@@ -70,7 +70,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     maxAge: 30 * 60,  // Set session max age to 30 minutes (in seconds)
   },
   pages: {
-    signIn: '/',  // Custom sign-in page
+    signIn: '/api/auth/signin',  // Custom sign-in page
   },
   // Remove PrismaAdapter when using JWT strategy with Credentials provider
   // adapter: PrismaAdapter(prisma),
