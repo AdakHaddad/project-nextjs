@@ -3,7 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import { ZodError } from "zod";
 import prisma from "./prisma"
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import bcrypt from "bcrypt";
+import bcryptjs from "bcryptjs";
 import { signInSchema } from "./zod" 
 
 // export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -103,7 +103,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
           // Compare the password with the stored hash
           console.log("Comparing passwords");
-          const passwordCorrect = await bcrypt.compare(password, existingUser.password);
+          const passwordCorrect = await bcryptjs.compare(password, existingUser.password);
           console.log("Password comparison result:", passwordCorrect);
 
           if (!passwordCorrect) {
