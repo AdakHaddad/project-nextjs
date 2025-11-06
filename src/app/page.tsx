@@ -29,27 +29,23 @@ export default function Home() {
 
   return (
     <main className="flex min-h-screen items-center justify-center p-24 bg-white text-black">
-      <div className="flex flex-row flex-nowrap border-black border-solid border rounded-sm shadow-xl">
+      <div className="flex flex-row flex-nowrap border border-gray-300 rounded-lg shadow-2xl hover:shadow-3xl transition-shadow duration-300 overflow-hidden">
         <div className="m-4">
-          <div className="m-4">
-            <div className="mb-5 p-4 flex items-center justify-center">
-              <div className="border-black border-solid border rounded-full p-1">
+            <div className="p-4 flex items-center justify-center">
                 <Image 
-                  src="/lol/" 
+                  src="/logo-ugm.png" 
                   alt="University logo" 
-                  width={60} 
-                  height={60} 
+                  width={120} 
+                  height={120} 
                   className="rounded-full"
                 />
-              </div>
             </div>
             <div>
-              <h1 className="font-extrabold text-lg pt-4">Universitas Gadjah Mada FKKMK</h1>
+              <h1 className="font-extrabold text-xl ">FKKMK Universitas Gadjah Mada</h1>
             </div>
-          </div>
         </div>
         <div className="m-4">
-          <h1 className="font-extrabold mb-4 text-lg">Dashboard</h1>
+          <h1 className="font-extrabold mb-4 text-lg">Login SIMDOSMA</h1>
           <form onSubmit={handleSubmit} className="flex flex-col flex-nowrap">
             <input
               name="username"
