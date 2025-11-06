@@ -12,7 +12,7 @@ export default async function Sidebar() {
       <div className="mb-5 p-4 flex items-center justify-center">
         <div className="border-black border-solid border rounded-full p-5">
           <Image
-            src="/lol/"
+            src="/logo-ugm.png"
             alt="University logo"
             width={60}
             height={60}
