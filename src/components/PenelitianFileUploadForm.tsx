@@ -22,38 +22,73 @@ export function PenelitianFileUploadForm({ closeModal }: PenelitianFileUploadFor
       return;
     }
 
-    Papa.parse(file, {
-      header: true,
-      complete: async function(results) {
-        console.log("Parsed Results:", results.data);
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split('\n');
+      const headerIndex = lines.findIndex(line => line.startsWith('NO;DATA ID'));
+      if (headerIndex === -1) {
+        alert('Could not find header row in file');
+        return;
+      }
+      const cleanedCsv = lines.slice(headerIndex).join('\n');
 
-        try {
-          const response = await fetch('/api/upload-penelitian', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(results.data),
+      Papa.parse(cleanedCsv, {
+        delimiter: ';',
+        header: true,
+        skipEmptyLines: true,
+        complete: async function(results) {
+          const transformedData = results.data.map((row: any) => {
+            const nidnMatch = /NIDN: (\d+)/.exec(row.PENULIS);
+            const penulisNidn = nidnMatch ? nidnMatch[1] : null;
+
+            let departmentId = null;
+            if (row.UNIT === 'Fakultas Kedokteran, Kesehatan Masyarakat, dan Keperawatan') {
+              departmentId = 13;
+            }
+
+            return {
+              id_data: row['DATA ID'],
+              judul: row.JUDUL,
+              penulisNidn: penulisNidn,
+              tingkat: row.TINGKAT,
+              url: row['URL BERKAS'],
+              id_department: departmentId,
+              tahun: row.TAHUN,
+            };
           });
 
-          if (response.ok) {
-            const responseData = await response.json();
-            alert(`File processed successfully.\nSuccessful: ${responseData.results.success}\nSkipped: ${responseData.results.skipped}\nErrors: ${responseData.results.errors.length}`);
-            closeModal();
-          } else {
-            const errorData = await response.json();
-            alert(`Error processing file: ${errorData.message}`);
+          console.log("Parsed Results:", transformedData);
+
+          try {
+            const response = await fetch('/api/upload-penelitian', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(transformedData),
+            });
+
+            if (response.ok) {
+              const responseData = await response.json();
+              alert(`File processed successfully.\nSuccessful: ${responseData.results.success}\nSkipped: ${responseData.results.skipped}\nErrors: ${responseData.results.errors.length}`);
+              closeModal();
+            } else {
+              const errorData = await response.json();
+              alert(`Error processing file: ${errorData.message}`);
+            }
+          } catch (error) {
+            console.error('Error uploading file:', error);
+            alert('Error uploading file');
           }
-        } catch (error) {
-          console.error('Error uploading file:', error);
-          alert('Error uploading file');
-        }
-      },
-      error: function(error) {
-        console.error('Error parsing file:', error);
-        alert('Error parsing file');
-      },
-    });
+        },
+        error: function(error) {
+          console.error('Error parsing file:', error);
+          alert('Error parsing file');
+        },
+      });
+    };
+    reader.readAsText(file);
   };
 
   return (

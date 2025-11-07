@@ -13,25 +13,81 @@ export async function POST(req: NextRequest) {
       success: 0,
       skipped: 0,
       errors: [] as string[],
+      failedRows: [] as any[],
+      skippedNoNIDN: 0,
+      skippedNoDepartment: 0,
     };
 
     for (const row of data) {
-      if (!row.NIDN || !row.NamaDosen || !row.DepartmentId) {
-        console.warn('Skipping row due to missing data:', row);
+      // Skip rows with empty NIDN (likely support staff, not lecturers)
+      if (!row.NIDN || row.NIDN.trim() === '') {
         results.skipped++;
+        results.skippedNoNIDN++;
+        continue;
+      }
+
+      if (!row.NamaDosen) {
+        console.warn('Skipping row due to missing Name:', row);
+        results.skipped++;
+        results.failedRows.push({ row, error: 'Missing Name' });
+        continue;
+      }
+
+      // Skip if no department info
+      if (!row.DepartmentId && !row.DepartmentName) {
+        results.skipped++;
+        results.skippedNoDepartment++;
+        results.failedRows.push({ row, error: 'Missing department information' });
         continue;
       }
 
       try {
+        let departmentId = row.DepartmentId;
+
+        // If DepartmentName is provided instead of ID, find or create the department
+        if (!departmentId && row.DepartmentName) {
+          const normalizedName = row.DepartmentName.trim();
+          
+          // Try to find existing department
+          let department = await prisma.department.findFirst({
+            where: { 
+              nama: {
+                equals: normalizedName,
+                mode: 'insensitive'
+              }
+            },
+          });
+
+          // If not found, create new department with auto-incrementing ID
+          if (!department) {
+            // Get the highest ID and increment
+            const maxDept = await prisma.department.findFirst({
+              orderBy: { id_department: 'desc' }
+            });
+            const nextId = (maxDept?.id_department || 0) + 1;
+
+            department = await prisma.department.create({
+              data: {
+                id_department: nextId,
+                nama: normalizedName,
+              },
+            });
+            console.log(`Created new department: ${normalizedName} with ID ${nextId}`);
+          }
+
+          departmentId = department.id_department;
+        }
+
         // Check if the Department exists
         const department = await prisma.department.findUnique({
-          where: { id_department: Number(row.DepartmentId) },
+          where: { id_department: Number(departmentId) },
         });
 
         if (!department) {
-          console.warn(`Department with ID ${row.DepartmentId} not found. Skipping record.`);
+          console.warn(`Department with ID ${departmentId} not found. Skipping record.`);
           results.skipped++;
-          results.errors.push(`Department with ID ${row.DepartmentId} not found for NIDN ${row.NIDN}`);
+          results.errors.push(`Department with ID ${departmentId} not found for NIDN ${row.NIDN}`);
+          results.failedRows.push({ row, error: `Department with ID ${departmentId} not found` });
           continue;
         }
 
@@ -40,12 +96,12 @@ export async function POST(req: NextRequest) {
           where: { nidn: row.NIDN },
           update: {
             nama: row.NamaDosen,
-            department: { connect: { id_department: Number(row.DepartmentId) } },
+            department: { connect: { id_department: Number(departmentId) } },
           },
           create: {
             nidn: row.NIDN,
             nama: row.NamaDosen,
-            department: { connect: { id_department: Number(row.DepartmentId) } },
+            department: { connect: { id_department: Number(departmentId) } },
           },
         });
 
@@ -53,12 +109,16 @@ export async function POST(req: NextRequest) {
       } catch (error:any) {
         console.error('Error processing row:', error);
         results.errors.push(`Error processing NIDN ${row.NIDN}: ${error.message}`);
+        results.failedRows.push({ row, error: error.message });
       }
     }
 
     return NextResponse.json({
       message: 'Data processing completed',
-      results: results
+      results: {
+        ...results,
+        summary: `Successfully imported ${results.success} lecturers. Skipped ${results.skippedNoNIDN} staff without NIDN (non-lecturers) and ${results.skippedNoDepartment} without department info.`
+      }
     }, { status: 200 });
   } catch (error: any) {
     console.error('Error processing data:', error);

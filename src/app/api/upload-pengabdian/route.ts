@@ -13,12 +13,14 @@ export async function POST(req: NextRequest) {
       success: 0,
       skipped: 0,
       errors: [] as string[],
+      failedRows: [] as any[],
     };
 
     for (const row of data) {
       if (!row.id_data || !row.judul || !row.penulisNidn || !row.tingkat || !row.url || !row.id_department || !row.tahun) {
         console.warn('Skipping row due to missing data:', row);
         results.skipped++;
+        results.failedRows.push({ row, error: 'Missing required data' });
         continue;
       }
 
@@ -32,6 +34,7 @@ export async function POST(req: NextRequest) {
           console.warn(`Department with ID ${row.id_department} not found. Skipping record.`);
           results.skipped++;
           results.errors.push(`Department with ID ${row.id_department} not found for research ID ${row.id_data}`);
+          results.failedRows.push({ row, error: `Department with ID ${row.id_department} not found` });
           continue;
         }
 
@@ -44,6 +47,7 @@ export async function POST(req: NextRequest) {
           console.warn(`Dosen with NIDN ${row.penulisNidn} not found. Skipping record.`);
           results.skipped++;
           results.errors.push(`Dosen with NIDN ${row.penulisNidn} not found for research ID ${row.id_data}`);
+          results.failedRows.push({ row, error: `Dosen with NIDN ${row.penulisNidn} not found` });
           continue;
         }
 
@@ -75,6 +79,7 @@ export async function POST(req: NextRequest) {
       } catch (error:any) {
         console.error('Error processing row:', error);
         results.errors.push(`Error processing research ID ${row.id_data}: ${error.message}`);
+        results.failedRows.push({ row, error: error.message });
       }
     }
 

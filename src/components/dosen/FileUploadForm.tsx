@@ -22,39 +22,64 @@ export function FileUploadForm({ closeModal }: FileUploadFormProps) {
       return;
     }
   
-    Papa.parse(file, {
-      header: true,
-      complete: async function(results) {
-        console.log("Parsed Results:", results.data);
-  
-        try {
-          const response = await fetch('/api/upload-dosen', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(results.data),
-          });
-  
-          if (response.ok) {
-            const responseData = await response.json();
-            alert(`File processed successfully.\nSuccessful: ${responseData.results.success}\nSkipped: ${responseData.results.skipped}\nErrors: ${responseData.results.errors.length}`);
-            closeModal();
-          } else {
-            const errorData = await response.json();
-            alert(`Error processing file: ${errorData.message}`);
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          const text = e.target?.result as string;
+          const lines = text.split('\n');
+                    const headerIndex = lines.findIndex(line => line.includes('NIDN'));
+          if (headerIndex === -1) {
+            alert('Could not find header row in file');
+            return;
           }
-        } catch (error) {
-          console.error('Error uploading file:', error);
-          alert('Error uploading file');
-        }
-      },
-      error: function(error) {
-        console.error('Error parsing file:', error);
-        alert('Error parsing file');
-      },
-    });
-  };
+          const cleanedCsv = lines.slice(headerIndex).join('\n');
+    
+          Papa.parse(cleanedCsv, {
+            delimiter: ';',
+            header: true,
+            skipEmptyLines: true,
+                    complete: async function(results) {
+                      const transformedData = results.data.map((row: any) => {
+                        const departmentName = row.Departemen || row.Unit || '';
+            
+                        return {
+                          NIDN: row.NIDN,
+                          NamaDosen: row.Nama || row['Nama Kepegawaian'] || row['Nama Publikasi'],
+                          DepartmentName: departmentName.trim(),
+                        };
+                      });
+            
+                      console.log("Parsed Results:", transformedData);
+            
+                      try {
+                        const response = await fetch('/api/upload-dosen', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify(transformedData),
+                        });    
+                if (response.ok) {
+                  const responseData = await response.json();
+                  const summary = responseData.results.summary || 
+                    `Successful: ${responseData.results.success}\nSkipped (no NIDN): ${responseData.results.skippedNoNIDN || 0}\nSkipped (no department): ${responseData.results.skippedNoDepartment || 0}\nErrors: ${responseData.results.errors.length}`;
+                  alert(`File processed successfully!\n\n${summary}`);
+                  closeModal();
+                } else {
+                  const errorData = await response.json();
+                  alert(`Error processing file: ${errorData.message}`);
+                }
+              } catch (error) {
+                console.error('Error uploading file:', error);
+                alert('Error uploading file');
+              }
+            },
+            error: function(error: any) {
+              console.error('Error parsing file:', error);
+              alert('Error parsing file');
+            },
+          });
+        };
+        reader.readAsText(file);  };
 
   return (
     <form onSubmit={handleSubmit}>
