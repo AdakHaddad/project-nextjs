@@ -71,7 +71,9 @@ export function PenelitianFileUploadForm({ closeModal }: PenelitianFileUploadFor
 
             if (response.ok) {
               const responseData = await response.json();
-              alert(`File processed successfully.\nSuccessful: ${responseData.results.success}\nSkipped: ${responseData.results.skipped}\nErrors: ${responseData.results.errors.length}`);
+              const summary = responseData.results.summary || 
+                `Successful: ${responseData.results.success}\nSkipped (no NIDN): ${responseData.results.skippedNoNIDN || 0}\nSkipped (no department): ${responseData.results.skippedNoDepartment || 0}\nSkipped (invalid format): ${responseData.results.skippedInvalidFormat || 0}\nErrors: ${responseData.results.errors.length}`;
+              alert(`File processed successfully!\n\n${summary}`);
               closeModal();
             } else {
               const errorData = await response.json();
