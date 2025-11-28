@@ -90,26 +90,43 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
-        // Check if the Dosen (author) exists
-        const dosen = await prisma.dosen.findUnique({
-          where: { nidn: row.penulisNidn.trim() },
-        });
-
-        if (!dosen) {
-          console.warn(`Dosen with NIDN ${row.penulisNidn} not found. Skipping record.`);
-          results.skipped++;
-          results.errors.push(`Dosen with NIDN ${row.penulisNidn} not found for pengabdian ID ${row.id_data}`);
-          results.failedRows.push({ row, error: `Dosen with NIDN ${row.penulisNidn} not found` });
-          continue;
+        // Find the Dosen (author) by any available identifier
+        let dosen = null;
+        
+        // Check Scopus ID if provided
+        if (row.penulisScopusId && row.penulisScopusId.trim() !== '') {
+          dosen = await prisma.dosen.findFirst({ where: { scopusId: row.penulisScopusId.trim() } });
+        }
+        
+        // Check ORCID if provided and not found yet
+        if (!dosen && row.penulisOrcidId && row.penulisOrcidId.trim() !== '') {
+          dosen = await prisma.dosen.findFirst({ where: { orcidId: row.penulisOrcidId.trim() } });
+        }
+        
+        // Check Google Scholar if provided and not found yet
+        if (!dosen && row.penulisGoogleScholarId && row.penulisGoogleScholarId.trim() !== '') {
+          dosen = await prisma.dosen.findFirst({ where: { googleScholarId: row.penulisGoogleScholarId.trim() } });
+        }
+        
+        // Check NIDN if provided and not found yet
+        if (!dosen && row.penulisNidn && row.penulisNidn.trim() !== '') {
+          dosen = await prisma.dosen.findUnique({ where: { nidn: row.penulisNidn.trim() } });
         }
 
+        if (!dosen) {
+          console.warn(`Dosen not found for service ID ${row.id_data}. Skipping record.`);
+          results.skipped++;
+          results.errors.push(`Dosen not found for service ID ${row.id_data}`);
+          results.failedRows.push({ row, error: 'Dosen not found' });
+          continue;
+        }
         // If Department and Dosen exist, proceed with upsert
         await prisma.pengabdian.upsert({
           where: { id_data: Number(row.id_data) },
           update: {
             judul: row.judul.trim(),
             penulisExternal: row.penulisExternal ? row.penulisExternal.trim() : '',
-            penulis: { connect: { nidn: row.penulisNidn.trim() } },
+            penulis: { connect: { id: dosen.id } },
             tingkat: row.tingkat.trim(),
             url: row.url ? row.url.trim() : '',
             department: { connect: { id_department: Number(departmentId) } },
@@ -119,7 +136,7 @@ export async function POST(req: NextRequest) {
             id_data: Number(row.id_data),
             judul: row.judul.trim(),
             penulisExternal: row.penulisExternal ? row.penulisExternal.trim() : '',
-            penulis: { connect: { nidn: row.penulisNidn.trim() } },
+            penulis: { connect: { id: dosen.id } },
             tingkat: row.tingkat.trim(),
             url: row.url ? row.url.trim() : '',
             department: { connect: { id_department: Number(departmentId) } },

@@ -9,7 +9,16 @@ import Link from 'next/link';
 type Department = {
   id_department: number;
   nama: string;
-  dosen: { nidn: string }[];
+  dosen: {
+    id: number;
+    nidn: string | null;
+    nama: string;
+    role: string | null;
+    scopusId: string | null;
+    orcidId: string | null;
+    googleScholarId: string | null;
+    id_department: number;
+  }[];
   _count: {
     dosen: number;
     pengabdian: number;

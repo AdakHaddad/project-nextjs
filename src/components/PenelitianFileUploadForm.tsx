@@ -84,7 +84,7 @@ export function PenelitianFileUploadForm({ closeModal }: PenelitianFileUploadFor
             alert('Error uploading file');
           }
         },
-        error: function(error) {
+        error: function(error: any) {
           console.error('Error parsing file:', error);
           alert('Error parsing file');
         },
