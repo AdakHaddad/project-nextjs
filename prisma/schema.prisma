@@ -25,20 +25,25 @@ model Department {
 }
 
 model Dosen {
-  nidn           String       @id @unique
-  nama           String
-  department     Department   @relation(fields: [id_department], references: [id_department])
-  id_department  Int
-  pengabdian     Pengabdian[]
-  penelitian     Penelitian[]
+  id               Int         @id @default(autoincrement())
+  nidn             String?     @unique
+  nama             String
+  role             String?
+  scopusId         String?
+  orcidId          String?
+  googleScholarId  String?
+  department       Department  @relation(fields: [id_department], references: [id_department])
+  id_department    Int
+  pengabdian       Pengabdian[]
+  penelitian       Penelitian[]
 }
 
 model Pengabdian {
   id_data         Int        @id
   judul           String
   penulisExternal String
-  penulis         Dosen      @relation(fields: [penulisNidn], references: [nidn])
-  penulisNidn     String
+  penulis         Dosen      @relation(fields: [penulisId], references: [id])
+  penulisId       Int
   tingkat         String
   url             String
   department      Department @relation(fields: [id_department], references: [id_department])
@@ -50,8 +55,8 @@ model Penelitian {
   id_data         Int        @id
   judul           String
   penulisExternal String
-  penulis         Dosen      @relation(fields: [penulisNidn], references: [nidn])
-  penulisNidn     String
+  penulis         Dosen      @relation(fields: [penulisId], references: [id])
+  penulisId       Int
   tingkat         String
   url             String
   department      Department @relation(fields: [id_department], references: [id_department])

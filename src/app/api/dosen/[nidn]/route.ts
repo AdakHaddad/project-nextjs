@@ -98,7 +98,7 @@ export async function GET(
         id_data: p.id_data,
         judul: p.judul,
         penulisExternal: p.penulisExternal,
-        penulisNidn: p.penulisNidn,
+        penulisId: p.penulisId,
         tingkat: p.tingkat,
         url: p.url,
         tahun: p.tahun,
@@ -107,7 +107,7 @@ export async function GET(
         id_data: p.id_data,
         judul: p.judul,
         penulisExternal: p.penulisExternal,
-        penulisNidn: p.penulisNidn,
+        penulisId: p.penulisId,
         tingkat: p.tingkat,
         url: p.url,
         tahun: p.tahun,
@@ -120,5 +120,41 @@ export async function GET(
   } catch (error) {
     console.error('Error fetching data:', error);
     return NextResponse.json({ error: 'An error occurred while fetching data' }, { status: 500 });
+  }
+}
+
+export async function PUT(
+  request: Request,
+  { params }: { params: { nidn: string } }
+) {
+  try {
+    const body = await request.json();
+    const { nama, departmentId, role, scopusId, orcidId, googleScholarId } = body;
+    const nidn = params.nidn;
+
+    const dosen = await prisma.dosen.findUnique({
+      where: { nidn }
+    });
+
+    if (!dosen) {
+      return NextResponse.json({ error: 'Dosen not found' }, { status: 404 });
+    }
+
+    const updatedDosen = await prisma.dosen.update({
+      where: { id: dosen.id },
+      data: {
+        nama: nama || dosen.nama,
+        role,
+        scopusId,
+        orcidId,
+        googleScholarId,
+        department: departmentId ? { connect: { id_department: Number(departmentId) } } : undefined,
+      },
+    });
+
+    return NextResponse.json(updatedDosen);
+  } catch (error) {
+    console.error('Error updating dosen:', error);
+    return NextResponse.json({ error: 'An error occurred while updating dosen' }, { status: 500 });
   }
 }

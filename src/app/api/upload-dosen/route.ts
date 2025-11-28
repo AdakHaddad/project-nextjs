@@ -19,13 +19,7 @@ export async function POST(req: NextRequest) {
     };
 
     for (const row of data) {
-      // Skip rows with empty NIDN (likely support staff, not lecturers)
-      if (!row.NIDN || row.NIDN.trim() === '') {
-        results.skipped++;
-        results.skippedNoNIDN++;
-        continue;
-      }
-
+      // Skip rows without name
       if (!row.NamaDosen) {
         console.warn('Skipping row due to missing Name:', row);
         results.skipped++;
@@ -91,19 +85,71 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
-        // If Department exists, proceed with upsert
-        await prisma.dosen.upsert({
-          where: { nidn: row.NIDN },
-          update: {
-            nama: row.NamaDosen,
-            department: { connect: { id_department: Number(departmentId) } },
-          },
-          create: {
-            nidn: row.NIDN,
-            nama: row.NamaDosen,
-            department: { connect: { id_department: Number(departmentId) } },
-          },
-        });
+        // Determine role based on CSV data
+        let role = 'STAFF'; // default
+        const jenisPegawai = row['Jenis Pegawai'] || row['Kategori Pegawai'] || '';
+        if (jenisPegawai.toLowerCase().includes('dosen')) {
+          role = 'DOSEN';
+        } else if (jenisPegawai.toLowerCase().includes('asisten')) {
+          role = 'ASISTEN_DOSEN';
+        }
+
+        // Extract alternative IDs
+        const scopusId = row['ID Scopus'] || null;
+        const orcidId = row['ORCID'] || null;
+        const googleScholarId = row['Google Scholar'] || null;
+
+        // Try to find existing dosen by any available identifier
+        let existingDosen = null;
+        
+        // Check Scopus ID if provided
+        if (scopusId && scopusId.trim() !== '') {
+          existingDosen = await prisma.dosen.findFirst({ where: { scopusId: scopusId.trim() } });
+        }
+        
+        // Check ORCID if provided and not found yet
+        if (!existingDosen && orcidId && orcidId.trim() !== '') {
+          existingDosen = await prisma.dosen.findFirst({ where: { orcidId: orcidId.trim() } });
+        }
+        
+        // Check Google Scholar if provided and not found yet
+        if (!existingDosen && googleScholarId && googleScholarId.trim() !== '') {
+          existingDosen = await prisma.dosen.findFirst({ where: { googleScholarId: googleScholarId.trim() } });
+        }
+        
+        // Check NIDN if provided and not found yet
+        if (!existingDosen && row.NIDN && row.NIDN.trim() !== '') {
+          existingDosen = await prisma.dosen.findUnique({ where: { nidn: row.NIDN.trim() } });
+        }
+
+        if (existingDosen) {
+          // Update existing
+          await prisma.dosen.update({
+            where: { id: existingDosen.id },
+            data: {
+              nama: row.NamaDosen,
+              nidn: row.NIDN && row.NIDN.trim() !== '' ? row.NIDN.trim() : existingDosen.nidn,
+              role,
+              scopusId: scopusId ? scopusId.trim() : existingDosen.scopusId,
+              orcidId: orcidId ? orcidId.trim() : existingDosen.orcidId,
+              googleScholarId: googleScholarId ? googleScholarId.trim() : existingDosen.googleScholarId,
+              department: { connect: { id_department: Number(departmentId) } },
+            },
+          });
+        } else {
+          // Create new
+          await prisma.dosen.create({
+            data: {
+              nidn: row.NIDN && row.NIDN.trim() !== '' ? row.NIDN.trim() : null,
+              nama: row.NamaDosen,
+              role,
+              scopusId: scopusId ? scopusId.trim() : null,
+              orcidId: orcidId ? orcidId.trim() : null,
+              googleScholarId: googleScholarId ? googleScholarId.trim() : null,
+              department: { connect: { id_department: Number(departmentId) } },
+            },
+          });
+        }
 
         results.success++;
       } catch (error:any) {
@@ -117,7 +163,7 @@ export async function POST(req: NextRequest) {
       message: 'Data processing completed',
       results: {
         ...results,
-        summary: `Successfully imported ${results.success} lecturers. Skipped ${results.skippedNoNIDN} staff without NIDN (non-lecturers) and ${results.skippedNoDepartment} without department info.`
+        summary: `Successfully processed ${results.success} records. Skipped ${results.skipped} records due to missing name or department info.`
       }
     }, { status: 200 });
   } catch (error: any) {
